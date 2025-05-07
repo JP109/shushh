@@ -1,16 +1,18 @@
-// dh-signaling-server/server.js
 import { WebSocketServer } from "ws";
+import { g, p, modPow, randomBigInt } from "./dh.mjs";
+import { deriveAESKeyAndIV } from "./keyDerivation.mjs";
 
 const wss = new WebSocketServer({ port: 4000 });
 let nextId = 1;
-const clients = new Map(); // id → ws
+const clients = new Map(); // clientId → ws
+const authKeys = new Map(); // clientId → { key, iv }
 
 wss.on("connection", (ws) => {
   const id = nextId++;
   clients.set(id, ws);
   ws.send(JSON.stringify({ type: "welcome", id }));
 
-  ws.on("message", (msg) => {
+  ws.on("message", async (msg) => {
     let m;
     try {
       m = JSON.parse(msg);
@@ -18,23 +20,32 @@ wss.on("connection", (ws) => {
       return;
     }
 
-    console.log("M", m);
+    // ─── Handle DH handshake with client ─────────────────────
+    if (m.type === "auth-dh-request") {
+      console.log(`[AUTH] ← DH request from client ${id}`);
+      const A = BigInt(`0x${m.public}`);
+      const b = randomBigInt();
+      const B = modPow(g, b, p);
+      const S = modPow(A, b, p);
+      const { key, iv } = await deriveAESKeyAndIV(S);
+      authKeys.set(id, { key, iv });
+      console.log("auth_keys", authKeys);
+      ws.send(
+        JSON.stringify({ type: "auth-dh-response", public: B.toString(16) })
+      );
+      console.log(`[AUTH] → DH response to client ${id}`);
+      return;
+    }
 
-    // all messages have .to and .type
+    // ─── Forward all other messages ──────────────────────────
     const target = clients.get(m.to);
     if (!target) return;
-
-    // forward everything else
-    target.send(
-      JSON.stringify({
-        ...m,
-        from: id,
-      })
-    );
+    target.send(JSON.stringify({ ...m, from: id }));
   });
 
   ws.on("close", () => {
     clients.delete(id);
+    authKeys.delete(id);
   });
 });
 

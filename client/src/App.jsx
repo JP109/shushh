@@ -7,6 +7,8 @@ import { utils as aesUtils } from "aes-js";
 export default function App() {
   const wsRef = useRef(null);
   const sharedRef = useRef(null);
+  const serverSecretRef = useRef(null);
+  const serverAuthRef = useRef(null);
   const [myId, setMyId] = useState(null);
   const [peerId, setPeerId] = useState("");
   const [status, setStatus] = useState("⏳ connecting…");
@@ -47,6 +49,39 @@ export default function App() {
         case "welcome":
           setMyId(m.id);
           addLog(`[WS] Assigned ID: ${m.id}`);
+          // ─── DH with server ──────────────────────────────────────
+          const a = randomBigInt();
+          serverSecretRef.current = a;
+          const A = modPow(g, a, p);
+          ws.send(
+            JSON.stringify({
+              type: "auth-dh-request",
+              public: A.toString(16),
+            })
+          );
+          addLog("[AUTH] → DH request to server");
+          break;
+
+        case "auth-dh-response":
+          addLog(`[AUTH] ← DH response from server`);
+          const aPriv = serverSecretRef.current;
+          const Bpub = BigInt(`0x${m.public}`);
+          const Ssec = modPow(Bpub, aPriv, p);
+          const { key: authKey, iv: authIv } = await deriveAESKeyAndIV(Ssec);
+          serverAuthRef.current = { key: authKey, iv: authIv };
+          // store auth_key in localStorage as hex
+          const bytesToHex = (bytes) =>
+            Array.from(bytes)
+              .map((b) => b.toString(16).padStart(2, "0"))
+              .join("");
+          localStorage.setItem(
+            "auth_key",
+            JSON.stringify({
+              key: bytesToHex(authKey),
+              iv: bytesToHex(authIv),
+            })
+          );
+          addLog("[AUTH] Stored auth_key in localStorage");
           break;
 
         case "dh-request": {
