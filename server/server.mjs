@@ -1,6 +1,8 @@
+// server.mjs
 import { WebSocketServer } from "ws";
 import { g, p, modPow, randomBigInt } from "./dh.mjs";
 import { deriveAESKeyAndIV } from "./keyDerivation.mjs";
+import { aesIgeEncrypt, aesIgeDecrypt } from "./aesIge.mjs";
 
 const wss = new WebSocketServer({ port: 4000 });
 let nextId = 1;
@@ -37,7 +39,32 @@ wss.on("connection", (ws) => {
       return;
     }
 
-    // ─── Forward all other messages ──────────────────────────
+    // ─── Handle nested encrypted messages ───────────────────
+    if (m.type === "message") {
+      const target = clients.get(m.to);
+      if (!target) return;
+
+      // Decrypt outer layer with sender's auth key
+      const outerBytes = Uint8Array.from(m.data);
+      const { key: senderKey, iv: senderIv } = authKeys.get(id);
+      const innerBytes = aesIgeDecrypt(outerBytes, senderKey, senderIv);
+
+      // Encrypt inner for recipient with their auth key
+      const { key: recKey, iv: recIv } = authKeys.get(m.to);
+      const outerForRec = aesIgeEncrypt(innerBytes, recKey, recIv);
+
+      // Forward to recipient
+      target.send(
+        JSON.stringify({
+          type: "message",
+          from: id,
+          data: Array.from(outerForRec),
+        })
+      );
+      return;
+    }
+
+    // ─── Forward client-client DH negotiation messages ─────
     const target = clients.get(m.to);
     if (!target) return;
     target.send(JSON.stringify({ ...m, from: id }));

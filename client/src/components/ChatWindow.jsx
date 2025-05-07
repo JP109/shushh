@@ -81,19 +81,19 @@ export default function ChatWindow() {
 
         case "dh-request": {
           addLog(`[DH] ← request from ${m.from}`);
-          const a = randomBigInt();
-          secretRef.current = a;
-          const B = modPow(g, a, p);
-          const A = BigInt(`0x${m.public}`);
-          const S = modPow(A, a, p);
-          const { key, iv } = await deriveAESKeyAndIV(S);
-          sharedRef.current = { key, iv, id: m.from };
-          setShared({ key, iv, id: m.from });
+          const a2 = randomBigInt();
+          secretRef.current = a2;
+          const B2 = modPow(g, a2, p);
+          const Afrom = BigInt(`0x${m.public}`);
+          const S2 = modPow(Afrom, a2, p);
+          const { key: sharedKey, iv: sharedIv } = await deriveAESKeyAndIV(S2);
+          sharedRef.current = { key: sharedKey, iv: sharedIv, id: m.from };
+          setShared({ key: sharedKey, iv: sharedIv, id: m.from });
           ws.send(
             JSON.stringify({
               type: "dh-response",
               to: m.from,
-              public: B.toString(16),
+              public: B2.toString(16),
             })
           );
           addLog(`[DH] → response to ${m.from}`);
@@ -102,29 +102,35 @@ export default function ChatWindow() {
 
         case "dh-response": {
           addLog(`[DH] ← response from ${m.from}`);
-          const a2 = secretRef.current;
+          const a3 = secretRef.current;
           const Aresp = BigInt(`0x${m.public}`);
-          const Sresp = modPow(Aresp, a2, p);
-          const { key, iv } = await deriveAESKeyAndIV(Sresp);
-          sharedRef.current = { key, iv, id: m.from };
-          setShared({ key, iv, id: m.from });
+          const S3 = modPow(Aresp, a3, p);
+          const { key: sKey, iv: sIv } = await deriveAESKeyAndIV(S3);
+          sharedRef.current = { key: sKey, iv: sIv, id: m.from };
+          setShared({ key: sKey, iv: sIv, id: m.from });
           break;
         }
 
         case "message": {
-          addLog(`[MSG] ← encrypted from ${m.from}: ${m.data.length} bytes`);
-          const cur = sharedRef.current;
-          if (!cur) {
-            addLog("[MSG] No shared key, skipping");
+          addLog(
+            `[MSG] ← nested encrypted from ${m.from}: ${m.data.length} bytes`
+          );
+          // First decrypt outer layer with client-server auth key
+          const outerCt = new Uint8Array(m.data);
+          const { key: srvKey, iv: srvIv } = serverAuthRef.current;
+          const innerCt = aesIgeDecrypt(outerCt, srvKey, srvIv);
+          // Then decrypt inner layer with client-client shared key
+          const { key: cliKey, iv: cliIv } = sharedRef.current || {};
+          if (!cliKey) {
+            addLog("[MSG] No shared key after outer decrypt, skipping");
             return;
           }
-          const data = new Uint8Array(m.data);
-          const dec = aesIgeDecrypt(data, cur.key, cur.iv);
+          const dec = aesIgeDecrypt(innerCt, cliKey, cliIv);
           const view = new DataView(dec.buffer);
           const len = view.getUint32(0, false);
           const textBytes = new Uint8Array(dec.buffer.slice(4, 4 + len));
           const text = aesUtils.utf8.fromBytes(textBytes);
-          addLog(`[MSG] decrypted: '${text}'`);
+          addLog(`[MSG] decrypted final: '${text}'`);
           setChat((c) => [...c, { from: m.from, text }]);
           break;
         }
@@ -156,21 +162,36 @@ export default function ChatWindow() {
 
   const sendMessage = () => {
     const ws = wsRef.current;
-    const cur = sharedRef.current;
+    const sharedData = sharedRef.current;
     const text = msgIn.current?.value;
-    if (!ws || !cur || !text) return;
+    if (!ws || !sharedData || !text) return;
     addLog(`[UI] Sending: '${text}'`);
+
+    // build plaintext payload
     const textBytes = aesUtils.utf8.toBytes(text);
     const lenBuf = new Uint8Array(4);
     new DataView(lenBuf.buffer).setUint32(0, textBytes.length, false);
     const payload = new Uint8Array(lenBuf.length + textBytes.length);
     payload.set(lenBuf, 0);
     payload.set(textBytes, 4);
-    const ct = aesIgeEncrypt(payload, cur.key, cur.iv);
-    addLog(`[MSG] encrypted length: ${ct.length}`);
+
+    // inner encrypt: client-client shared key
+    const innerCt = aesIgeEncrypt(payload, sharedData.key, sharedData.iv);
+    addLog(`[MSG] inner encrypted length: ${innerCt.length}`);
+
+    // outer encrypt: client-server auth key
+    const { key: srvKey, iv: srvIv } = serverAuthRef.current;
+    const outerCt = aesIgeEncrypt(innerCt, srvKey, srvIv);
+    addLog(`[MSG] nested encrypted length: ${outerCt.length}`);
+
     ws.send(
-      JSON.stringify({ type: "message", to: cur.id, data: Array.from(ct) })
+      JSON.stringify({
+        type: "message",
+        to: sharedData.id,
+        data: Array.from(outerCt),
+      })
     );
+
     setChat((c) => [...c, { from: myId, text }]);
     msgIn.current.value = "";
   };
