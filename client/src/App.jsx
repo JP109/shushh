@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { g, MODP_P, modPow, randomBigInt } from "./dh";
+import { g, p, modPow, randomBigInt } from "./dh";
 import { aesIgeEncrypt, aesIgeDecrypt } from "./aesIge";
 import { deriveAESKeyAndIV } from "./keyDerivation";
 import { utils as aesUtils } from "aes-js";
@@ -53,9 +53,9 @@ export default function App() {
           addLog(`[DH] ← request from ${m.from}`);
           const a = randomBigInt();
           secretRef.current = a;
-          const B = modPow(g, a, MODP_P);
+          const B = modPow(g, a, p);
           const A = BigInt(`0x${m.public}`);
-          const S = modPow(A, a, MODP_P);
+          const S = modPow(A, a, p);
           const { key, iv } = await deriveAESKeyAndIV(S);
           sharedRef.current = { key, iv, id: m.from };
           setShared({ key, iv, id: m.from });
@@ -74,7 +74,7 @@ export default function App() {
           addLog(`[DH] ← response from ${m.from}`);
           const a = secretRef.current;
           const Aresp = BigInt(`0x${m.public}`);
-          const Sresp = modPow(Aresp, a, MODP_P);
+          const Sresp = modPow(Aresp, a, p);
           const { key, iv } = await deriveAESKeyAndIV(Sresp);
           sharedRef.current = { key, iv, id: m.from };
           setShared({ key, iv, id: m.from });
@@ -114,7 +114,7 @@ export default function App() {
     addLog(`[UI] Initiating DH with ${peerId}`);
     const a = randomBigInt();
     secretRef.current = a;
-    const A = modPow(g, a, MODP_P);
+    const A = modPow(g, a, p);
     ws.send(
       JSON.stringify({
         type: "dh-request",
