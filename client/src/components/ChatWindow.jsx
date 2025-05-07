@@ -176,57 +176,49 @@ export default function ChatWindow() {
   };
 
   return (
-    <div style={{ padding: 20 }}>
+    <div className="chat-window">
       <h2>Peer-to-Peer DH Chat</h2>
-      <div>
+      <div className="status">
         Status: {status} {myId && `(you are #${myId})`}
       </div>
 
-      <div style={{ margin: "1em 0" }}>
+      <div className="dh-init">
         <input
+          className="peer-input"
           placeholder="peer id"
           value={peerId}
           onChange={(e) => setPeerId(e.target.value)}
         />
-        <button onClick={initiateDH} disabled={!peerId}>
+        <button className="dh-button" onClick={initiateDH} disabled={!peerId}>
           Initiate DH
         </button>
       </div>
 
-      <div>
+      <div className="log-container">
         <strong>Log:</strong>
-        <pre
-          style={{
-            background: "#222",
-            color: "#0f0",
-            padding: 10,
-            height: 200,
-            overflowY: "auto",
-          }}
-        >
-          {log.join("\n")}
-        </pre>
+        <pre className="log-output">{log.join("\n")}</pre>
       </div>
 
       {shared && (
-        <div style={{ marginTop: 20 }}>
+        <div className="chat-container">
           <h3>Chat (with #{shared.id})</h3>
-          <div
-            style={{
-              maxHeight: 200,
-              overflowY: "auto",
-              background: "#000",
-              padding: 10,
-            }}
-          >
+          <div className="chat-messages">
             {chat.map((m, i) => (
               <div key={i}>
                 <b>{m.from === myId ? "You" : `#${m.from}`}:</b> {m.text}
               </div>
             ))}
           </div>
-          <input ref={msgIn} placeholder="Type message…" />
-          <button onClick={sendMessage}>Sesnd</button>
+          <div className="message-bar">
+            <input
+              className="message-input"
+              ref={msgIn}
+              placeholder="Type message…"
+            />
+            <button className="send-button" onClick={sendMessage}>
+              Send
+            </button>
+          </div>
         </div>
       )}
     </div>

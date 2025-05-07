@@ -1,0 +1,42 @@
+.chat-window {
+  padding: 20px;
+}
+.status {
+  margin-bottom: 1em;
+}
+.dh-init {
+  margin: 1em 0;
+}
+.peer-input {
+  margin-right: 0.5em;
+}
+.log-container {
+  margin-bottom: 1em;
+}
+.log-output {
+  background: #222;
+  color: #0f0;
+  padding: 10px;
+  height: 200px;
+  overflow-y: auto;
+}
+.chat-container {
+  margin-top: 20px;
+}
+.chat-messages {
+  max-height: 200px;
+  overflow-y: auto;
+  background: #000;
+  padding: 10px;
+}
+.message-bar {
+  display: flex;
+  margin-top: 0.5em;
+}
+.message-input {
+  flex: 1;
+  margin-right: 0.5em;
+}
+.send-button {
+  /* button styles */
+}
