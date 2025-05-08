@@ -83,6 +83,13 @@ export default function ChatWindow({ user, onLogout }) {
               let savedAuthiv = hexToBytes(iv);
               serverAuthRef.current = { key: savedAuthKey, iv: savedAuthiv };
               addLog("[AUTH] Reusing stored auth_key");
+              // Restore last secret chat immediately on reuse
+              const last = localStorage.getItem(LAST_PEER_KEY);
+              console.log("LAST FROM LS", last);
+              if (last) {
+                addLog(`[AUTH] Restoring secret chat with #${last}`); //!!!!
+                initiatePeerDH(parseInt(last)); //!!!!
+              }
             } catch (err) {
               addLog(`[AUTH] Failed to reuse stored key: ${err.message}`);
               //   doServerDH();
@@ -123,12 +130,6 @@ export default function ChatWindow({ user, onLogout }) {
             JSON.stringify({ key: bytesToHex(authKey), iv: bytesToHex(authIv) })
           );
           addLog("[AUTH] Stored auth_key in localStorage");
-          // NEW CHANGE: restore last secret chat once auth is ready
-          const last = localStorage.getItem(LAST_PEER_KEY);
-          if (last) {
-            addLog(`[AUTH] Restoring secret chat with #${last}`); // NEW CHANGE
-            initiatePeerDH(last); // NEW CHANGE
-          }
           break;
 
         case "dh-request": {
@@ -230,6 +231,7 @@ export default function ChatWindow({ user, onLogout }) {
 
   // start client-client DH or reuse old key
   const initiatePeerDH = (receiverID) => {
+    console.log("PEERID in initiatePeerDH", receiverID);
     setPeerId(receiverID);
     localStorage.setItem(LAST_PEER_KEY, receiverID);
     const storageKey = SHARED_STORAGE_KEY(receiverID);
