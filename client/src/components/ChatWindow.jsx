@@ -215,6 +215,18 @@ export default function ChatWindow({ user, onLogout }) {
           break;
         }
 
+        case "peer-logout": {
+          addLog(`[DH] Peer #${m.from} logged out; clearing shared key`); //!!!!
+          const keyName = SHARED_STORAGE_KEY(m.from);
+          localStorage.removeItem(keyName); // remove shared_x_y
+          localStorage.removeItem(LAST_PEER_KEY); // clear lastPeerId
+          sharedRef.current = null; // clear in-memory
+          setShared(null); // hide chat window
+          setPeerId(""); // reset UI state
+          setChat([]); // clear chat log
+          break;
+        }
+
         default:
           addLog(`[WS] Unknown type: ${m.type}`);
       }
@@ -306,13 +318,23 @@ export default function ChatWindow({ user, onLogout }) {
     msgIn.current.value = "";
   };
 
+  // handle user-initiated logout to notify peer first
+  const handleLogoutClick = () => {
+    if (sharedRef.current?.id) {
+      const peer = sharedRef.current.id;
+      wsRef.current.send(JSON.stringify({ type: "peer-logout", to: peer }));
+      addLog(`[WS] → peer-logout sent to #${peer}`); //!!!!
+    }
+    onLogout();
+  };
+
   return (
     <div className="chat-window">
       <div className="user-bar">
         <span>
           Logged in as: <b>#{user.id}</b> ({user.email})
         </span>
-        <button onClick={onLogout}>Logout</button>
+        <button onClick={handleLogoutClick}>Logout</button>
       </div>
 
       <div className="user-list">

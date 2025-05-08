@@ -84,6 +84,21 @@ wss.on("connection", async (ws, req) => {
       return;
     }
 
+    //!!!! Relay peer-logout to the other side
+    if (m.type === "peer-logout") {
+      const targetWs = clients.get(m.to);
+      if (targetWs) {
+        targetWs.send(
+          JSON.stringify({
+            type: "peer-logout",
+            from: userId,
+          })
+        );
+        console.log(`[WS] Relayed peer-logout from ${userId} to ${m.to}`);
+      }
+      return;
+    }
+
     // ─── Handle client–server DH ──────────────────────
     if (m.type === "auth-dh-request") {
       console.log(`[AUTH] ← DH request from user ${userId}`);
