@@ -51,6 +51,10 @@ export default function ChatWindow({ user, onLogout }) {
     ws.onclose = (ev) =>
       addLog(`[WS] Closed (code=${ev.code},reason=${ev.reason})`);
 
+    // Helper to convert hex back to Uint8Array
+    const hexToBytes = (hex) =>
+      new Uint8Array(hex.match(/.{1,2}/g).map((b) => parseInt(b, 16)));
+
     ws.onmessage = async (ev) => {
       addLog(`[WS] Received raw: ${ev.data}`);
       let m;
@@ -64,15 +68,31 @@ export default function ChatWindow({ user, onLogout }) {
       switch (m.type) {
         case "welcome":
           setMyId(user.id);
-          addLog(`[WS] Assigned ID: ${m.id}`);
-          // ─── DH with server ──────────────────────────────────────
-          const a = randomBigInt();
-          serverSecretRef.current = a;
-          const A = modPow(g, a, p);
-          ws.send(
-            JSON.stringify({ type: "auth-dh-request", public: A.toString(16) })
-          );
-          addLog("[AUTH] → DH request to server");
+          // Check for stored auth_key
+          const stored = localStorage.getItem("auth_key");
+          if (stored) {
+            try {
+              const { key, iv } = JSON.parse(stored);
+              let savedAuthKey = hexToBytes(key);
+              let savedAuthiv = hexToBytes(iv);
+              serverAuthRef.current = { key: savedAuthKey, iv: savedAuthiv };
+              addLog("[AUTH] Reusing stored auth_key");
+            } catch (err) {
+              addLog(`[AUTH] Failed to reuse stored key: ${err.message}`);
+            }
+          } else {
+            // ─── DH with server ──────────────────────────────────
+            const a = randomBigInt();
+            serverSecretRef.current = a;
+            const A = modPow(g, a, p);
+            ws.send(
+              JSON.stringify({
+                type: "auth-dh-request",
+                public: A.toString(16),
+              })
+            );
+            addLog("[AUTH] → DH request to server");
+          }
           break;
 
         case "auth-dh-response":

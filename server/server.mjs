@@ -4,10 +4,20 @@ import jwt from "jsonwebtoken";
 import { g, p, modPow, randomBigInt } from "./dh.mjs";
 import { deriveAESKeyAndIV } from "./keyDerivation.mjs";
 import { aesIgeEncrypt, aesIgeDecrypt } from "./aesIge.mjs";
+import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 dotenv.config();
 
+// — Load these from .env
 const JWT_SECRET = process.env.JWT_SECRET;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !JWT_SECRET) {
+  console.error("Missing SUPABASE_URL / SERVICE_KEY / JWT_SECRET in .env");
+  process.exit(1);
+}
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 const wss = new WebSocketServer({ port: 4000 });
 
@@ -15,7 +25,19 @@ const wss = new WebSocketServer({ port: 4000 });
 const clients = new Map(); // userId → WebSocket
 const authKeys = new Map(); // userId → { key, iv }
 
-wss.on("connection", (ws, req) => {
+// helper to hex-encode a Uint8Array
+function bytesToHex(bytes) {
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+// hex→Uint8Array helper
+function hexToBytes(hex) {
+  return new Uint8Array(hex.match(/.{1,2}/g).map((h) => parseInt(h, 16)));
+}
+
+wss.on("connection", async (ws, req) => {
   // 1️⃣ Grab token from the URL
   const url = new URL(req.url, `ws://${req.headers.host}`);
   const token = url.searchParams.get("token");
@@ -33,10 +55,25 @@ wss.on("connection", (ws, req) => {
     ws.close(4002, "Invalid or expired token");
     return;
   }
-  const userId = payload.userId; // <-- your signup flow must put `id` in the JWT
+  const userId = payload.userId;
 
   // 3️⃣ Register this socket under the real userId
   clients.set(userId, ws);
+
+  // preload existing key/iv from DB (if any)
+  const { data: userRow, error } = await supabase
+    .from("users")
+    .select("auth_key, auth_iv")
+    .eq("id", userId)
+    .single();
+
+  if (userRow && userRow.auth_key && userRow.auth_iv) {
+    const key = hexToBytes(userRow.auth_key);
+    const iv = hexToBytes(userRow.auth_iv);
+    authKeys.set(userId, { key, iv });
+    console.log(`[AUTH] loaded persisted key for user ${userId}`);
+  }
+
   ws.send(JSON.stringify({ type: "welcome", id: userId }));
 
   ws.on("message", async (raw) => {
@@ -56,6 +93,15 @@ wss.on("connection", (ws, req) => {
       const S = modPow(A, b, p);
       const { key, iv } = await deriveAESKeyAndIV(S);
       authKeys.set(userId, { key, iv });
+
+      // 1️⃣ store on DB for persistence
+      const hexKey = bytesToHex(key);
+      const hexIv = bytesToHex(iv);
+      await supabase
+        .from("users")
+        .update({ auth_key: hexKey, auth_iv: hexIv })
+        .eq("id", userId);
+      console.log(`[AUTH] persisted auth_key for user ${userId}`);
 
       ws.send(
         JSON.stringify({

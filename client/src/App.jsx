@@ -20,6 +20,7 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("auth_key");
     setToken(null);
     setUser(null);
     window.location.reload();
