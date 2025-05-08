@@ -142,6 +142,8 @@ export default function ChatWindow({ user, onLogout }) {
           const { key: sharedKey, iv: sharedIv } = await deriveAESKeyAndIV(S2);
           sharedRef.current = { key: sharedKey, iv: sharedIv, id: m.from };
           setShared({ key: sharedKey, iv: sharedIv, id: m.from });
+          localStorage.setItem(LAST_PEER_KEY, m.from);
+          addLog(`[UI] Saved lastPeerId: ${m.from}`);
           // store peer-peer shared key
           const bytesToHex = (b) =>
             Array.from(b)
@@ -174,6 +176,9 @@ export default function ChatWindow({ user, onLogout }) {
           sharedRef.current = { key: sKey, iv: sIv, id: m.from };
           setShared({ key: sKey, iv: sIv, id: m.from });
           // store per-peer
+          //!!!! Save lastPeerId on receiver
+          localStorage.setItem(LAST_PEER_KEY, m.from);
+          addLog(`[UI] Saved lastPeerId: ${m.from}`);
           const bytesToHex = (b) =>
             Array.from(b)
               .map((x) => x.toString(16).padStart(2, "0"))
@@ -233,7 +238,7 @@ export default function ChatWindow({ user, onLogout }) {
   const initiatePeerDH = (receiverID) => {
     console.log("PEERID in initiatePeerDH", receiverID);
     setPeerId(receiverID);
-    localStorage.setItem(LAST_PEER_KEY, receiverID);
+    // localStorage.setItem(LAST_PEER_KEY, receiverID);
     const storageKey = SHARED_STORAGE_KEY(receiverID);
     const storedSecretChatKey = localStorage.getItem(storageKey);
     if (storedSecretChatKey) {

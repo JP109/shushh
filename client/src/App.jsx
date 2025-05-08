@@ -21,6 +21,13 @@ export default function App() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("auth_key");
+    localStorage.removeItem("lastPeerId");
+    // remove all client-client shared keys for this user
+    Object.keys(localStorage).forEach((k) => {
+      if (k.startsWith(`shared_${user.id}_`)) {
+        localStorage.removeItem(k);
+      }
+    });
     setToken(null);
     setUser(null);
     window.location.reload();
