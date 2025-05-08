@@ -1,0 +1,58 @@
+// src/components/AuthForm.jsx
+import React, { useState } from "react";
+
+export default function AuthForm({ onSuccess }) {
+  const [mode, setMode] = useState("login"); // "login" | "signup"
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    try {
+      const res = await fetch(`http://localhost:3004/auth/${mode}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Authentication failed");
+      } else {
+        onSuccess({ token: data.token, user: data.user });
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div className="auth-form">
+      <h2>{mode === "login" ? "Log In" : "Sign Up"}</h2>
+      <form onSubmit={submit}>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+        <button type="submit">{mode === "login" ? "Log In" : "Sign Up"}</button>
+      </form>
+      {error && <div className="error">{error}</div>}
+      <p onClick={() => setMode(mode === "login" ? "signup" : "login")}>
+        {mode === "login"
+          ? "Don't have an account? Sign up"
+          : "Have an account? Log in"}
+      </p>
+    </div>
+  );
+}

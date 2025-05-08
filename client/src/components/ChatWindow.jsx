@@ -5,7 +5,7 @@ import { aesIgeEncrypt, aesIgeDecrypt } from "../aesIge";
 import { deriveAESKeyAndIV } from "../keyDerivation";
 import { utils as aesUtils } from "aes-js";
 
-export default function ChatWindow() {
+export default function ChatWindow({ user, onLogout }) {
   const wsRef = useRef(null);
   const sharedRef = useRef(null);
   const serverSecretRef = useRef(null);
@@ -25,7 +25,10 @@ export default function ChatWindow() {
   };
 
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:4000");
+    // on mount, inject Authorization header or token param if needed
+    const ws = new WebSocket(
+      `ws://localhost:4000?token=${localStorage.getItem("token")}`
+    );
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -48,7 +51,7 @@ export default function ChatWindow() {
 
       switch (m.type) {
         case "welcome":
-          setMyId(m.id);
+          setMyId(user.id);
           addLog(`[WS] Assigned ID: ${m.id}`);
           // ─── DH with server ──────────────────────────────────────
           const a = randomBigInt();
@@ -198,6 +201,12 @@ export default function ChatWindow() {
 
   return (
     <div className="chat-window">
+      <div className="user-bar">
+        <span>
+          Logged in as: <b>#{user.id}</b> ({user.email})
+        </span>
+        <button onClick={onLogout}>Logout</button>
+      </div>
       <h2>Peer-to-Peer DH Chat</h2>
       <div className="status">
         Status: {status} {myId && `(you are #${myId})`}
