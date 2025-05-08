@@ -12,13 +12,19 @@ export default function ChatWindow({ user, onLogout }) {
   const serverAuthRef = useRef(null);
   const [myId, setMyId] = useState(null);
   const [usersList, setUsersList] = useState([]);
-  const [peerId, setPeerId] = useState("");
+  const [peerId, setPeerId] = useState(
+    () => localStorage.getItem("lastPeerId") || ""
+  );
   const [status, setStatus] = useState("⏳ connecting…");
   const [shared, setShared] = useState(null);
   const secretRef = useRef();
   const [log, setLog] = useState([]);
   const msgIn = useRef();
   const [chat, setChat] = useState([]);
+
+  // storage key for client-client shared keys
+  const SHARED_STORAGE_KEY = (peerId) => `shared_${user.id}_${peerId}`;
+  const LAST_PEER_KEY = "lastPeerId";
 
   const addLog = (entry) => {
     console.log(entry);
@@ -79,9 +85,11 @@ export default function ChatWindow({ user, onLogout }) {
               addLog("[AUTH] Reusing stored auth_key");
             } catch (err) {
               addLog(`[AUTH] Failed to reuse stored key: ${err.message}`);
+              //   doServerDH();
             }
           } else {
             // ─── DH with server ──────────────────────────────────
+            // doServerDH();
             const a = randomBigInt();
             serverSecretRef.current = a;
             const A = modPow(g, a, p);
@@ -93,6 +101,9 @@ export default function ChatWindow({ user, onLogout }) {
             );
             addLog("[AUTH] → DH request to server");
           }
+          //   // if we have a lastPeerId, restore chat
+          //   const last = localStorage.getItem(LAST_PEER_KEY);
+          //   if (last) initiatePeerDH(last);
           break;
 
         case "auth-dh-response":
@@ -112,6 +123,12 @@ export default function ChatWindow({ user, onLogout }) {
             JSON.stringify({ key: bytesToHex(authKey), iv: bytesToHex(authIv) })
           );
           addLog("[AUTH] Stored auth_key in localStorage");
+          // NEW CHANGE: restore last secret chat once auth is ready
+          const last = localStorage.getItem(LAST_PEER_KEY);
+          if (last) {
+            addLog(`[AUTH] Restoring secret chat with #${last}`); // NEW CHANGE
+            initiatePeerDH(last); // NEW CHANGE
+          }
           break;
 
         case "dh-request": {
@@ -124,6 +141,18 @@ export default function ChatWindow({ user, onLogout }) {
           const { key: sharedKey, iv: sharedIv } = await deriveAESKeyAndIV(S2);
           sharedRef.current = { key: sharedKey, iv: sharedIv, id: m.from };
           setShared({ key: sharedKey, iv: sharedIv, id: m.from });
+          // store peer-peer shared key
+          const bytesToHex = (b) =>
+            Array.from(b)
+              .map((x) => x.toString(16).padStart(2, "0"))
+              .join("");
+          localStorage.setItem(
+            SHARED_STORAGE_KEY(m.from),
+            JSON.stringify({
+              key: bytesToHex(sharedKey),
+              iv: bytesToHex(sharedIv),
+            })
+          );
           ws.send(
             JSON.stringify({
               type: "dh-response",
@@ -143,6 +172,16 @@ export default function ChatWindow({ user, onLogout }) {
           const { key: sKey, iv: sIv } = await deriveAESKeyAndIV(S3);
           sharedRef.current = { key: sKey, iv: sIv, id: m.from };
           setShared({ key: sKey, iv: sIv, id: m.from });
+          // store per-peer
+          const bytesToHex = (b) =>
+            Array.from(b)
+              .map((x) => x.toString(16).padStart(2, "0"))
+              .join("");
+          localStorage.setItem(
+            SHARED_STORAGE_KEY(m.from),
+            JSON.stringify({ key: bytesToHex(sKey), iv: bytesToHex(sIv) })
+          );
+          addLog(`[DH] Stored shared key for ${m.from}`);
           break;
         }
 
@@ -178,7 +217,36 @@ export default function ChatWindow({ user, onLogout }) {
     return () => ws.close();
   }, []);
 
-  const initiateDH = (receiverID) => {
+  // trigger DH
+  function doServerDH() {
+    const a = randomBigInt();
+    serverSecretRef.current = a;
+    const A = modPow(g, a, p);
+    ws.send(
+      JSON.stringify({ type: "auth-dh-request", public: A.toString(16) })
+    );
+    addLog("[AUTH] → DH request");
+  }
+
+  // start client-client DH or reuse old key
+  const initiatePeerDH = (receiverID) => {
+    setPeerId(receiverID);
+    localStorage.setItem(LAST_PEER_KEY, receiverID);
+    const storageKey = SHARED_STORAGE_KEY(receiverID);
+    const storedSecretChatKey = localStorage.getItem(storageKey);
+    if (storedSecretChatKey) {
+      // reuse
+      const hexToBytes = (hex) =>
+        new Uint8Array(hex.match(/.{1,2}/g).map((b) => parseInt(b, 16)));
+      const { key: hk, iv: hiv } = JSON.parse(storedSecretChatKey);
+      const key = hexToBytes(hk),
+        iv = hexToBytes(hiv);
+      sharedRef.current = { key, iv, id: receiverID };
+      setShared({ key, iv, id: receiverID });
+      addLog(`[DH] Reusing shared secret chat key for ${receiverID}`);
+      return;
+    }
+    // else live handshake
     const ws = wsRef.current;
     if (!ws || !receiverID) return;
     addLog(`[UI] Initiating DH with ${receiverID}`);
@@ -245,7 +313,7 @@ export default function ChatWindow({ user, onLogout }) {
         <ul>
           {usersList.map((u) => (
             <li key={u.id}>
-              <button onClick={() => initiateDH(u.id)}>
+              <button onClick={() => initiatePeerDH(u.id)}>
                 {u.email} (#{u.id})
               </button>
             </li>
@@ -253,22 +321,10 @@ export default function ChatWindow({ user, onLogout }) {
         </ul>
       </div>
 
-      <h2>Peer-to-Peer DH Chat</h2>
+      <h2>E2ee Chat</h2>
       <div className="status">
         Status: {status} {myId && `(you are #${myId})`}
       </div>
-
-      {/* <div className="dh-init">
-        <input
-          className="peer-input"
-          placeholder="peer id"
-          value={peerId}
-          onChange={(e) => setPeerId(e.target.value)}
-        />
-        <button className="dh-button" onClick={initiateDH} disabled={!peerId}>
-          Initiate DH
-        </button>
-      </div> */}
 
       <div className="log-container">
         <strong>Log:</strong>
