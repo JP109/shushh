@@ -11,6 +11,7 @@ export default function ChatWindow({ user, onLogout }) {
   const serverSecretRef = useRef(null);
   const serverAuthRef = useRef(null);
   const [myId, setMyId] = useState(null);
+  const [usersList, setUsersList] = useState([]);
   const [peerId, setPeerId] = useState("");
   const [status, setStatus] = useState("⏳ connecting…");
   const [shared, setShared] = useState(null);
@@ -23,6 +24,17 @@ export default function ChatWindow({ user, onLogout }) {
     console.log(entry);
     setLog((l) => [...l, entry]);
   };
+
+  // Fetch all other users when component mounts
+  useEffect(() => {
+    fetch("http://localhost:3004/users")
+      .then((res) => res.json())
+      .then((data) => {
+        const others = data.filter((u) => u.id !== user.id);
+        setUsersList(others);
+      })
+      .catch((err) => addLog(`[USERS] fetch error: ${err.message}`));
+  }, [user.id]);
 
   useEffect(() => {
     // on mount, inject Authorization header or token param if needed
@@ -146,21 +158,21 @@ export default function ChatWindow({ user, onLogout }) {
     return () => ws.close();
   }, []);
 
-  const initiateDH = () => {
+  const initiateDH = (receiverID) => {
     const ws = wsRef.current;
-    if (!ws || !peerId) return;
-    addLog(`[UI] Initiating DH with ${peerId}`);
+    if (!ws || !receiverID) return;
+    addLog(`[UI] Initiating DH with ${receiverID}`);
     const a = randomBigInt();
     secretRef.current = a;
     const A = modPow(g, a, p);
     ws.send(
       JSON.stringify({
         type: "dh-request",
-        to: Number(peerId),
+        to: Number(receiverID),
         public: A.toString(16),
       })
     );
-    addLog(`[DH] → request to ${peerId}`);
+    addLog(`[DH] → request to ${receiverID}`);
   };
 
   const sendMessage = () => {
@@ -207,12 +219,26 @@ export default function ChatWindow({ user, onLogout }) {
         </span>
         <button onClick={onLogout}>Logout</button>
       </div>
+
+      <div className="user-list">
+        <strong>Start a chat:</strong>
+        <ul>
+          {usersList.map((u) => (
+            <li key={u.id}>
+              <button onClick={() => initiateDH(u.id)}>
+                {u.email} (#{u.id})
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
       <h2>Peer-to-Peer DH Chat</h2>
       <div className="status">
         Status: {status} {myId && `(you are #${myId})`}
       </div>
 
-      <div className="dh-init">
+      {/* <div className="dh-init">
         <input
           className="peer-input"
           placeholder="peer id"
@@ -222,7 +248,7 @@ export default function ChatWindow({ user, onLogout }) {
         <button className="dh-button" onClick={initiateDH} disabled={!peerId}>
           Initiate DH
         </button>
-      </div>
+      </div> */}
 
       <div className="log-container">
         <strong>Log:</strong>
