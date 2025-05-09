@@ -141,53 +141,6 @@ wss.on("connection", async (ws, req) => {
       return;
     }
 
-    // // ─── Handle nested encrypted messages ────────────
-    // if (m.type === "message") {
-    //   // const targetWs = clients.get(m.to);
-    //   // if (!targetWs) return; // unknown recipient
-    //   const targetWs = clients.get(m.to);
-
-    //   // 1) Strip outer layer (client→server auth key)
-    //   const outerCt = Uint8Array.from(m.data);
-    //   const { key: sendKey, iv: sendIv } = authKeys.get(userId);
-    //   const innerCt = aesIgeDecrypt(outerCt, sendKey, sendIv);
-
-    //   // 2) Wrap for recipient (server→client auth key)
-    //   const { key: recKey, iv: recIv } = authKeys.get(m.to);
-    //   const outerForRec = aesIgeEncrypt(innerCt, recKey, recIv);
-
-    //   const envelope = {
-    //     type: "message",
-    //     from: userId,
-    //     data: Array.from(outerForRec),
-    //   };
-
-    //   // // 3) Forward
-    //   // if (targetWs) {
-    //   //   // online → send immediately
-    //   //   targetWs.send(JSON.stringify(envelope));
-    //   // } else {
-    //   //   // recipient offline → queue for later
-    //   //   const arr = pendingMessages.get(m.to) || [];
-    //   //   arr.push(envelope);
-    //   //   pendingMessages.set(m.to, arr);
-    //   //   console.log(`[OFFLINE] Queued for ${m.to}:`, envelope);
-    //   // }
-    //   //!!!! 3) Send or queue:
-    //   if (targetWs) {
-    //     // online → send immediately
-    //     targetWs.send(JSON.stringify(envelope));
-    //   } else {
-    //     // recipient offline → queue for later
-    //     const arr = pendingMessages.get(m.to) || [];
-    //     arr.push(envelope);
-    //     pendingMessages.set(m.to, arr);
-    //     console.log(`[OFFLINE] Queued for ${m.to}:`, envelope);
-    //   }
-
-    //   return;
-    // }
-
     if (m.type === "message") {
       const targetWs = clients.get(m.to);
 

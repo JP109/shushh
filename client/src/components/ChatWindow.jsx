@@ -22,6 +22,9 @@ export default function ChatWindow({ user, onLogout }) {
   const msgIn = useRef();
   const [chat, setChat] = useState([]);
 
+  // Incoming DH request state
+  const [incomingRequest, setIncomingRequest] = useState(null);
+
   // storage key for client-client shared keys
   const SHARED_STORAGE_KEY = (peerId) => `shared_${user.id}_${peerId}`;
   const LAST_PEER_KEY = "lastPeerId";
@@ -132,40 +135,46 @@ export default function ChatWindow({ user, onLogout }) {
           addLog("[AUTH] Stored auth_key in localStorage");
           break;
 
-        case "dh-request": {
+        // case "dh-request": {
+        //   addLog(`[DH] ← request from ${m.from}`);
+        //   const a2 = randomBigInt();
+        //   secretRef.current = a2;
+        //   const B2 = modPow(g, a2, p);
+        //   const Afrom = BigInt(`0x${m.public}`);
+        //   const S2 = modPow(Afrom, a2, p);
+        //   const { key: sharedKey, iv: sharedIv } = await deriveAESKeyAndIV(S2);
+        //   sharedRef.current = { key: sharedKey, iv: sharedIv, id: m.from };
+        //   setShared({ key: sharedKey, iv: sharedIv, id: m.from });
+        //   localStorage.setItem(LAST_PEER_KEY, m.from);
+        //   addLog(`[UI] Saved lastPeerId: ${m.from}`);
+        //   // store peer-peer shared key
+        //   const bytesToHex = (b) =>
+        //     Array.from(b)
+        //       .map((x) => x.toString(16).padStart(2, "0"))
+        //       .join("");
+        //   localStorage.setItem(
+        //     SHARED_STORAGE_KEY(m.from),
+        //     JSON.stringify({
+        //       key: bytesToHex(sharedKey),
+        //       iv: bytesToHex(sharedIv),
+        //     })
+        //   );
+        //   ws.send(
+        //     JSON.stringify({
+        //       type: "dh-response",
+        //       to: m.from,
+        //       public: B2.toString(16),
+        //     })
+        //   );
+        //   addLog(`[DH] → response to ${m.from}`);
+        //   break;
+        // }
+
+        case "dh-request":
           addLog(`[DH] ← request from ${m.from}`);
-          const a2 = randomBigInt();
-          secretRef.current = a2;
-          const B2 = modPow(g, a2, p);
-          const Afrom = BigInt(`0x${m.public}`);
-          const S2 = modPow(Afrom, a2, p);
-          const { key: sharedKey, iv: sharedIv } = await deriveAESKeyAndIV(S2);
-          sharedRef.current = { key: sharedKey, iv: sharedIv, id: m.from };
-          setShared({ key: sharedKey, iv: sharedIv, id: m.from });
-          localStorage.setItem(LAST_PEER_KEY, m.from);
-          addLog(`[UI] Saved lastPeerId: ${m.from}`);
-          // store peer-peer shared key
-          const bytesToHex = (b) =>
-            Array.from(b)
-              .map((x) => x.toString(16).padStart(2, "0"))
-              .join("");
-          localStorage.setItem(
-            SHARED_STORAGE_KEY(m.from),
-            JSON.stringify({
-              key: bytesToHex(sharedKey),
-              iv: bytesToHex(sharedIv),
-            })
-          );
-          ws.send(
-            JSON.stringify({
-              type: "dh-response",
-              to: m.from,
-              public: B2.toString(16),
-            })
-          );
-          addLog(`[DH] → response to ${m.from}`);
+          // instead of doing DH immediately:
+          setIncomingRequest({ from: m.from, public: m.public });
           break;
-        }
 
         case "dh-response": {
           addLog(`[DH] ← response from ${m.from}`);
@@ -227,6 +236,12 @@ export default function ChatWindow({ user, onLogout }) {
           break;
         }
 
+        case "dh-declined": {
+          //!!!! Notify initiator that peer rejected the chat
+          addLog(`[DH] User #${m.from} declined your chat request`);
+          break;
+        }
+
         default:
           addLog(`[WS] Unknown type: ${m.type}`);
       }
@@ -234,6 +249,63 @@ export default function ChatWindow({ user, onLogout }) {
 
     return () => ws.close();
   }, []);
+
+  // Handler to ACCEPT an incoming DH request
+  const acceptIncomingDH = async () => {
+    const ws = wsRef.current;
+    const { from, public: Ahex } = incomingRequest;
+    addLog(`[UI] Accepting DH from ${from}`); //!!!!
+
+    // replicate your dh-request code:
+    const a2 = randomBigInt();
+    secretRef.current = a2;
+    const B2 = modPow(g, a2, p);
+    const Afrom = BigInt(`0x${Ahex}`);
+    const S2 = modPow(Afrom, a2, p);
+    const { key: sharedKey, iv: sharedIv } = await deriveAESKeyAndIV(S2);
+    sharedRef.current = { key: sharedKey, iv: sharedIv, id: from };
+    setShared({ key: sharedKey, iv: sharedIv, id: from });
+
+    ws.send(
+      JSON.stringify({
+        type: "dh-response",
+        to: from,
+        public: B2.toString(16),
+      })
+    );
+    addLog(`[DH] → response to ${from}`);
+
+    // Persist the client-client key
+    const toHex = (b) =>
+      Array.from(b)
+        .map((x) => x.toString(16).padStart(2, "0"))
+        .join("");
+    const storageKey = SHARED_STORAGE_KEY(from, user.id);
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify({ key: toHex(sharedKey), iv: toHex(sharedIv) })
+    );
+    addLog(`[DH] Stored shared key under ${storageKey}`); //!!!!
+
+    // Remember this peer for UI restore
+    localStorage.setItem(LAST_PEER_KEY, from);
+
+    setIncomingRequest(null); // close the popup
+  };
+
+  // Handler to DECLINE an incoming DH request
+  const declineIncomingDH = () => {
+    addLog(`[UI] Declined DH from ${incomingRequest.from}`);
+    // let the initiator know we declined
+    wsRef.current.send(
+      JSON.stringify({
+        type: "dh-declined",
+        to: incomingRequest.from,
+      })
+    );
+    addLog(`[DH] → decline-notification sent to #${incomingRequest.from}`);
+    setIncomingRequest(null);
+  };
 
   // trigger DH
   function doServerDH() {
@@ -349,6 +421,22 @@ export default function ChatWindow({ user, onLogout }) {
           ))}
         </ul>
       </div>
+
+      {/* !!!! MODAL POPUP for incoming DH */}
+      {incomingRequest && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <p>
+              User <b>#{incomingRequest.from}</b>{" "}
+              {usersList.find((u) => u.id === incomingRequest.from)?.email ||
+                ""}{" "}
+              wants to start a secret chat.
+            </p>
+            <button onClick={acceptIncomingDH}>Accept</button>
+            <button onClick={declineIncomingDH}>Decline</button>
+          </div>
+        </div>
+      )}
 
       <h2>E2ee Chat</h2>
       <div className="status">
