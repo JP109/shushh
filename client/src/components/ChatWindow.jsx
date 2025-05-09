@@ -4,6 +4,7 @@ import { g, p, modPow, randomBigInt } from "../dh";
 import { aesIgeEncrypt, aesIgeDecrypt } from "../aesIge";
 import { deriveAESKeyAndIV } from "../keyDerivation";
 import { utils as aesUtils } from "aes-js";
+import "./ChatWindow.css";
 
 export default function ChatWindow({ user, onLogout }) {
   const wsRef = useRef(null);
@@ -90,16 +91,14 @@ export default function ChatWindow({ user, onLogout }) {
               const last = localStorage.getItem(LAST_PEER_KEY);
               console.log("LAST FROM LS", last);
               if (last) {
-                addLog(`[AUTH] Restoring secret chat with #${last}`); //!!!!
-                initiatePeerDH(parseInt(last)); //!!!!
+                addLog(`[AUTH] Restoring secret chat with #${last}`);
+                initiatePeerDH(parseInt(last));
               }
             } catch (err) {
               addLog(`[AUTH] Failed to reuse stored key: ${err.message}`);
-              //   doServerDH();
             }
           } else {
             // ─── DH with server ──────────────────────────────────
-            // doServerDH();
             const a = randomBigInt();
             serverSecretRef.current = a;
             const A = modPow(g, a, p);
@@ -111,9 +110,6 @@ export default function ChatWindow({ user, onLogout }) {
             );
             addLog("[AUTH] → DH request to server");
           }
-          //   // if we have a lastPeerId, restore chat
-          //   const last = localStorage.getItem(LAST_PEER_KEY);
-          //   if (last) initiatePeerDH(last);
           break;
 
         case "auth-dh-response":
@@ -135,41 +131,6 @@ export default function ChatWindow({ user, onLogout }) {
           addLog("[AUTH] Stored auth_key in localStorage");
           break;
 
-        // case "dh-request": {
-        //   addLog(`[DH] ← request from ${m.from}`);
-        //   const a2 = randomBigInt();
-        //   secretRef.current = a2;
-        //   const B2 = modPow(g, a2, p);
-        //   const Afrom = BigInt(`0x${m.public}`);
-        //   const S2 = modPow(Afrom, a2, p);
-        //   const { key: sharedKey, iv: sharedIv } = await deriveAESKeyAndIV(S2);
-        //   sharedRef.current = { key: sharedKey, iv: sharedIv, id: m.from };
-        //   setShared({ key: sharedKey, iv: sharedIv, id: m.from });
-        //   localStorage.setItem(LAST_PEER_KEY, m.from);
-        //   addLog(`[UI] Saved lastPeerId: ${m.from}`);
-        //   // store peer-peer shared key
-        //   const bytesToHex = (b) =>
-        //     Array.from(b)
-        //       .map((x) => x.toString(16).padStart(2, "0"))
-        //       .join("");
-        //   localStorage.setItem(
-        //     SHARED_STORAGE_KEY(m.from),
-        //     JSON.stringify({
-        //       key: bytesToHex(sharedKey),
-        //       iv: bytesToHex(sharedIv),
-        //     })
-        //   );
-        //   ws.send(
-        //     JSON.stringify({
-        //       type: "dh-response",
-        //       to: m.from,
-        //       public: B2.toString(16),
-        //     })
-        //   );
-        //   addLog(`[DH] → response to ${m.from}`);
-        //   break;
-        // }
-
         case "dh-request":
           addLog(`[DH] ← request from ${m.from}`);
           // instead of doing DH immediately:
@@ -185,7 +146,7 @@ export default function ChatWindow({ user, onLogout }) {
           sharedRef.current = { key: sKey, iv: sIv, id: m.from };
           setShared({ key: sKey, iv: sIv, id: m.from });
           // store per-peer
-          //!!!! Save lastPeerId on receiver
+          // Save lastPeerId on receiver
           localStorage.setItem(LAST_PEER_KEY, m.from);
           addLog(`[UI] Saved lastPeerId: ${m.from}`);
           const bytesToHex = (b) =>
@@ -237,7 +198,7 @@ export default function ChatWindow({ user, onLogout }) {
         }
 
         case "dh-declined": {
-          //!!!! Notify initiator that peer rejected the chat
+          // Notify initiator that peer rejected the chat
           addLog(`[DH] User #${m.from} declined your chat request`);
           break;
         }
@@ -306,17 +267,6 @@ export default function ChatWindow({ user, onLogout }) {
     addLog(`[DH] → decline-notification sent to #${incomingRequest.from}`);
     setIncomingRequest(null);
   };
-
-  // trigger DH
-  function doServerDH() {
-    const a = randomBigInt();
-    serverSecretRef.current = a;
-    const A = modPow(g, a, p);
-    ws.send(
-      JSON.stringify({ type: "auth-dh-request", public: A.toString(16) })
-    );
-    addLog("[AUTH] → DH request");
-  }
 
   // start client-client DH or reuse old key
   const initiatePeerDH = (receiverID) => {
@@ -395,81 +345,82 @@ export default function ChatWindow({ user, onLogout }) {
     if (sharedRef.current?.id) {
       const peer = sharedRef.current.id;
       wsRef.current.send(JSON.stringify({ type: "peer-logout", to: peer }));
-      addLog(`[WS] → peer-logout sent to #${peer}`); //!!!!
+      addLog(`[WS] → peer-logout sent to #${peer}`);
     }
     onLogout();
   };
 
   return (
-    <div className="chat-window">
+    <>
       <div className="user-bar">
         <span>
           Logged in as: <b>#{user.id}</b> ({user.email})
         </span>
         <button onClick={handleLogoutClick}>Logout</button>
       </div>
-
-      <div className="user-list">
-        <strong>Start a chat:</strong>
-        <ul>
-          {usersList.map((u) => (
-            <li key={u.id}>
-              <button onClick={() => initiatePeerDH(u.id)}>
-                {u.email} (#{u.id})
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* !!!! MODAL POPUP for incoming DH */}
-      {incomingRequest && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <p>
-              User <b>#{incomingRequest.from}</b>{" "}
-              {usersList.find((u) => u.id === incomingRequest.from)?.email ||
-                ""}{" "}
-              wants to start a secret chat.
-            </p>
-            <button onClick={acceptIncomingDH}>Accept</button>
-            <button onClick={declineIncomingDH}>Decline</button>
-          </div>
+      <div className="chat-window">
+        <div className="user-list">
+          <strong>Start a chat:</strong>
+          <ul>
+            {usersList.map((u) => (
+              <li key={u.id}>
+                <button onClick={() => initiatePeerDH(u.id)}>
+                  {u.email} (#{u.id})
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
-      )}
 
-      <h2>E2ee Chat</h2>
+        {/* MODAL POPUP for incoming DH */}
+        {incomingRequest && (
+          <div className="modal-overlay">
+            <div className="modal">
+              <p>
+                User <b>#{incomingRequest.from}</b>{" "}
+                {usersList.find((u) => u.id === incomingRequest.from)?.email ||
+                  ""}{" "}
+                wants to start a secret chat.
+              </p>
+              <button onClick={acceptIncomingDH}>Accept</button>
+              <button onClick={declineIncomingDH}>Decline</button>
+            </div>
+          </div>
+        )}
+
+        {/* <h2>E2ee Chat</h2>
       <div className="status">
         Status: {status} {myId && `(you are #${myId})`}
-      </div>
+      </div> */}
 
-      <div className="log-container">
-        <strong>Log:</strong>
-        <pre className="log-output">{log.join("\n")}</pre>
-      </div>
+        {shared && (
+          <div className="chat-container">
+            <h3>Chat (with #{shared.id})</h3>
+            <div className="chat-messages">
+              {chat.map((m, i) => (
+                <div key={i}>
+                  <b>{m.from === myId ? "You" : `#${m.from}`}:</b> {m.text}
+                </div>
+              ))}
+            </div>
+            <div className="message-bar">
+              <input
+                className="message-input"
+                ref={msgIn}
+                placeholder="Type message…"
+              />
+              <button className="send-button" onClick={sendMessage}>
+                Send
+              </button>
+            </div>
+          </div>
+        )}
 
-      {shared && (
-        <div className="chat-container">
-          <h3>Chat (with #{shared.id})</h3>
-          <div className="chat-messages">
-            {chat.map((m, i) => (
-              <div key={i}>
-                <b>{m.from === myId ? "You" : `#${m.from}`}:</b> {m.text}
-              </div>
-            ))}
-          </div>
-          <div className="message-bar">
-            <input
-              className="message-input"
-              ref={msgIn}
-              placeholder="Type message…"
-            />
-            <button className="send-button" onClick={sendMessage}>
-              Send
-            </button>
-          </div>
+        <div className="log-container">
+          <strong>Log:</strong>
+          <pre className="log-output">{log.join("\n")}</pre>
         </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 }

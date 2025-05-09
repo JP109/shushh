@@ -1,42 +1,195 @@
+:root {
+  --primary-bg: #ffffff;
+  --secondary-bg: #f5f5f7;
+  --accent-color: #0088cc;
+  --light-text: #ffffff;
+  --dark-text: #2f3336;
+  --border-radius: 8px;
+  --header-height: 60px;
+  --font-family: "Segoe UI", sans-serif;
+}
+
+/* Full-screen two-pane layout */
 .chat-window {
+  display: flex;
+  /* grid-template-areas:
+    "header header header"
+    "sidebar main log";
+  grid-template-columns: 250px 1fr;
+  grid-template-rows: var(--header-height) 1fr; */
+  height: 92vh;
+  font-family: var(--font-family);
+  background: var(--secondary-bg);
+  color: var(--dark-text);
+  margin: 0;
+  width: 100vw;
+}
+
+/* Top bar */
+.user-bar {
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: var(--accent-color);
+  color: var(--light-text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  height: 8vh;
+}
+
+/* Sidebar */
+.user-list {
+  /* grid-area: sidebar; */
+  background: var(--primary-bg);
   padding: 20px;
-}
-.status {
-  margin-bottom: 1em;
-}
-.dh-init {
-  margin: 1em 0;
-}
-.peer-input {
-  margin-right: 0.5em;
-}
-.log-container {
-  margin-bottom: 1em;
-}
-.log-output {
-  background: #222;
-  color: #0f0;
-  padding: 10px;
-  height: 200px;
+  border-right: 1px solid #e0e0e0;
   overflow-y: auto;
+  width: 20vw;
+  max-height: 92vh;
 }
+.user-list strong {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 1rem;
+}
+.user-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.user-list li {
+  margin-bottom: 8px;
+}
+.user-list button {
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background: rgba(0, 136, 204, 0.1);
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: background 0.2s;
+  color: #000;
+}
+.user-list button:hover {
+  background: rgba(10, 65, 116, 0.1);
+}
+
+/* Main chat area */
 .chat-container {
-  margin-top: 20px;
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  width: 50vw;
+  max-height: 80vh;
 }
-.chat-messages {
-  max-height: 200px;
+
+/* Status line */
+.status {
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+}
+
+/* Log panel */
+.log-container {
+  grid-area: log;
+  background: #282c34;
+  color: #61dafb;
+  border-radius: var(--border-radius);
+  padding: 15px;
+  height: 80vh;
   overflow-y: auto;
-  background: #000;
-  padding: 10px;
+  margin: 20px 20px;
+  width: 30vw;
 }
+
+/* Message area */
+.chat-messages {
+  flex: 1;
+  background: #e5ddd5;
+  border-radius: var(--border-radius);
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  max-height: 50vh;
+}
+.chat-messages > div {
+  margin-bottom: 10px;
+  max-width: 70%;
+  padding: 10px 15px;
+  border-radius: var(--border-radius);
+  line-height: 1.4;
+}
+/* Alternate left/right bubbles */
+.chat-messages > div:nth-child(odd) {
+  align-self: flex-start;
+  background: var(--primary-bg);
+}
+.chat-messages > div:nth-child(even) {
+  align-self: flex-end;
+  background: #dcf8c6;
+}
+
+/* Input bar */
 .message-bar {
   display: flex;
-  margin-top: 0.5em;
+  margin-top: 12px;
 }
 .message-input {
   flex: 1;
-  margin-right: 0.5em;
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: var(--border-radius) 0 0 var(--border-radius);
+  outline: none;
 }
 .send-button {
-  /* button styles */
+  padding: 0 20px;
+  border: none;
+  background: var(--accent-color);
+  color: var(--light-text);
+  border-radius: 0 var(--border-radius) var(--border-radius) 0;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.send-button:hover {
+  background: #0077b5;
+}
+
+/* Modal popup */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal {
+  background: var(--primary-bg);
+  padding: 24px;
+  border-radius: var(--border-radius);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+  text-align: center;
+}
+.modal p {
+  margin-bottom: 20px;
+  font-size: 1rem;
+}
+.modal button {
+  margin: 0 8px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.modal button:first-of-type {
+  background: var(--accent-color);
+  color: var(--light-text);
+}
+.modal button:last-of-type {
+  background: #e0e0e0;
 }
