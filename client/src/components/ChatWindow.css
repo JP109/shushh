@@ -38,6 +38,14 @@
   height: 8vh;
 }
 
+.logo {
+  font-weight: bold;
+}
+
+.login-details {
+  padding-right: 10px;
+}
+
 /* Sidebar */
 .user-list {
   /* grid-area: sidebar; */
@@ -78,12 +86,26 @@
 
 /* Main chat area */
 .chat-container {
-  grid-area: main;
   display: flex;
   flex-direction: column;
   padding: 20px;
   width: 50vw;
   max-height: 80vh;
+}
+
+.welcome-text {
+  font-size: 1.3rem;
+  font-weight: bold;
+}
+
+.info-container {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  width: 50vw;
+  max-height: 80vh;
+
+  align-items: center;
 }
 
 /* Status line */

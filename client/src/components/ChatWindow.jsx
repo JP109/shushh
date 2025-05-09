@@ -353,10 +353,16 @@ export default function ChatWindow({ user, onLogout }) {
   return (
     <>
       <div className="user-bar">
-        <span>
-          Logged in as: <b>#{user.id}</b> ({user.email})
-        </span>
-        <button onClick={handleLogoutClick}>Logout</button>
+        <div className="logo">TeleChat</div>
+        <div>
+          <span className="login-details">
+            Logged in as:{" "}
+            <b>
+              {user.name} (User #{user.id})
+            </b>
+          </span>
+          <button onClick={handleLogoutClick}>Logout</button>
+        </div>
       </div>
       <div className="chat-window">
         <div className="user-list">
@@ -365,7 +371,7 @@ export default function ChatWindow({ user, onLogout }) {
             {usersList.map((u) => (
               <li key={u.id}>
                 <button onClick={() => initiatePeerDH(u.id)}>
-                  {u.email} (#{u.id})
+                  {u.name} (User #{u.id})
                 </button>
               </li>
             ))}
@@ -378,7 +384,7 @@ export default function ChatWindow({ user, onLogout }) {
             <div className="modal">
               <p>
                 User <b>#{incomingRequest.from}</b>{" "}
-                {usersList.find((u) => u.id === incomingRequest.from)?.email ||
+                {usersList.find((u) => u.id === incomingRequest.from)?.name ||
                   ""}{" "}
                 wants to start a secret chat.
               </p>
@@ -388,20 +394,45 @@ export default function ChatWindow({ user, onLogout }) {
           </div>
         )}
 
-        {/* <h2>E2ee Chat</h2>
-      <div className="status">
-        Status: {status} {myId && `(you are #${myId})`}
-      </div> */}
+        {!shared && (
+          <div className="info-container">
+            <p className="welcome-text">
+              Welcome to TeleChat! An e2ee messaging web app.
+            </p>
+            <p className="welcome-info">
+              Click on a user from the list on the left to chat with them!
+            </p>
+            <p className="welcome-tip">
+              Reload this page if you can't see a recently registered user.
+            </p>
+          </div>
+        )}
 
         {shared && (
           <div className="chat-container">
-            <h3>Chat (with #{shared.id})</h3>
+            {/* <h3>Chat (with #{shared.id})</h3> */}
+            <h3>
+              Chat (with #{shared.id}
+              {` `}
+              {usersList.find((u) => u.id === shared.id)?.name})
+            </h3>
             <div className="chat-messages">
-              {chat.map((m, i) => (
-                <div key={i}>
-                  <b>{m.from === myId ? "You" : `#${m.from}`}:</b> {m.text}
-                </div>
-              ))}
+              {chat.map((m, i) => {
+                // <div key={i}>
+                //   <b>{m.from === myId ? "You" : `#${m.from}`}:</b> {m.text}
+                // </div>
+                const isMe = m.from === myId;
+                const senderName = isMe
+                  ? "You"
+                  : usersList.find((u) => u.id === m.from)?.name ||
+                    `#${m.from}`;
+
+                return (
+                  <div key={i}>
+                    <b>{senderName}:</b> {m.text} {/*!!!! */}
+                  </div>
+                );
+              })}
             </div>
             <div className="message-bar">
               <input

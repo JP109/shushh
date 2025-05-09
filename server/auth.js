@@ -26,9 +26,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 // POST /auth/signup
 app.post("/auth/signup", async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ error: "Need email + password" });
+  const { name, email, password } = req.body;
+  if (!email || !password || !name) {
+    return res.status(400).json({ error: "Need email + password + name" });
   }
 
   // check for existing
@@ -49,8 +49,8 @@ app.post("/auth/signup", async (req, res) => {
   const password_hash = await bcrypt.hash(password, 10);
   const { data: user, error: insertErr } = await supabase
     .from("users")
-    .insert({ email, password_hash })
-    .select("id, email")
+    .insert({ name, email, password_hash })
+    .select("id, name, email")
     .single();
 
   if (insertErr) {
@@ -58,7 +58,10 @@ app.post("/auth/signup", async (req, res) => {
   }
 
   const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
-  res.json({ token, user: { id: user.id, email: user.email } });
+  res.json({
+    token,
+    user: { id: user.id, name: user.name, email: user.email },
+  });
 });
 
 app.post("/auth/login", async (req, res) => {
@@ -70,7 +73,7 @@ app.post("/auth/login", async (req, res) => {
   // 1) fetch the user and hash
   const { data: user, error: fetchErr } = await supabase
     .from("users")
-    .select("id, email, password_hash")
+    .select("id, email, name, password_hash")
     .eq("email", email)
     .single();
 
@@ -86,7 +89,10 @@ app.post("/auth/login", async (req, res) => {
 
   // 3) sign & return
   const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
-  res.json({ token, user: { id: user.id, email: user.email } });
+  res.json({
+    token,
+    user: { id: user.id, name: user.name, email: user.email },
+  });
 });
 
 // GET /users  → returns [{ id, email }, …]
@@ -94,7 +100,7 @@ app.get("/users", async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("users")
-      .select("id,email")
+      .select("id, email, name")
       .order("email", { ascending: true });
     if (error) throw error;
     res.json(data);

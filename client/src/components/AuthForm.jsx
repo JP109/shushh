@@ -3,6 +3,7 @@ import React, { useState } from "react";
 
 export default function AuthForm({ onSuccess }) {
   const [mode, setMode] = useState("login"); // "login" | "signup"
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -11,10 +12,16 @@ export default function AuthForm({ onSuccess }) {
     e.preventDefault();
     setError("");
     try {
+      // const url = mode === "login" ? "/auth/login" : "/auth/signup";
+      const body = {
+        email,
+        password,
+        ...(mode === "signup" && { name }),
+      };
       const res = await fetch(`http://localhost:3004/auth/${mode}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -31,6 +38,15 @@ export default function AuthForm({ onSuccess }) {
     <div className="auth-form">
       <h2>{mode === "login" ? "Log In" : "Sign Up"}</h2>
       <form onSubmit={submit}>
+        {mode === "signup" && (
+          <div>
+            <input
+              placeholder="Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+        )}
         <input
           type="email"
           placeholder="Email"
