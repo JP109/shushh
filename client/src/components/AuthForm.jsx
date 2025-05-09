@@ -1,5 +1,6 @@
 // src/components/AuthForm.jsx
 import React, { useState } from "react";
+import "./authform.css";
 
 export default function AuthForm({ onSuccess }) {
   const [mode, setMode] = useState("login"); // "login" | "signup"
@@ -35,40 +36,46 @@ export default function AuthForm({ onSuccess }) {
   };
 
   return (
-    <div className="auth-form">
-      <h2>{mode === "login" ? "Log In" : "Sign Up"}</h2>
-      <form onSubmit={submit}>
-        {mode === "signup" && (
-          <div>
-            <input
-              placeholder="Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
-        )}
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit">{mode === "login" ? "Log In" : "Sign Up"}</button>
-      </form>
-      {error && <div className="error">{error}</div>}
-      <p onClick={() => setMode(mode === "login" ? "signup" : "login")}>
-        {mode === "login"
-          ? "Don't have an account? Sign up"
-          : "Have an account? Log in"}
-      </p>
+    <div className="auth-container">
+      <h1 className="title">Welcome to TeleChat</h1>
+      <h3 className="subtitle">An e2ee messaging app based on MTProto 2.0</h3>
+      <div className="auth-form">
+        <h2>{mode === "login" ? "Log In" : "Sign Up"}</h2>
+        <form onSubmit={submit}>
+          {mode === "signup" && (
+            <div>
+              <input
+                placeholder="Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+          )}
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <button type="submit">
+            {mode === "login" ? "Log In" : "Sign Up"}
+          </button>
+        </form>
+        {error && <div className="error">{error}</div>}
+        <p onClick={() => setMode(mode === "login" ? "signup" : "login")}>
+          {mode === "login"
+            ? "Don't have an account? Sign up"
+            : "Have an account? Log in"}
+        </p>
+      </div>
     </div>
   );
 }
