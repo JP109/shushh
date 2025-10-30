@@ -1,6 +1,6 @@
 // src/components/AuthForm.jsx
 import React, { useState } from "react";
-import "./authform.css";
+import "./AuthForm.css";
 
 export default function AuthForm({ onSuccess }) {
   const [mode, setMode] = useState("login"); // "login" | "signup"
