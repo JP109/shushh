@@ -146,13 +146,25 @@
   line-height: 1.4;
 }
 /* Alternate left/right bubbles */
-.chat-messages > div:nth-child(odd) {
+/* .chat-messages > div:nth-child(odd) {
   align-self: flex-start;
   background: var(--primary-bg);
 }
 .chat-messages > div:nth-child(even) {
   align-self: flex-end;
   background: #dcf8c6;
+} */
+
+/* Your messages (right aligned) */
+.message.me {
+  align-self: flex-end;
+  background: #dcf8c6;
+}
+
+/* Other messages (left aligned) */
+.message.other {
+  align-self: flex-start;
+  background: var(--primary-bg);
 }
 
 /* Input bar */

@@ -19,7 +19,13 @@ export default function AuthForm({ onSuccess }) {
         password,
         ...(mode === "signup" && { name }),
       };
-      const res = await fetch(`http://localhost:3004/auth/${mode}`, {
+      // // Uncomment for local testing
+      // const res = await fetch(`http://localhost:3004/auth/${mode}`, {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify(body),
+      // });
+      const res = await fetch(`https://shushh-auth.onrender.com/auth/${mode}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

@@ -19,7 +19,12 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !JWT_SECRET) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-const wss = new WebSocketServer({ port: 4000 });
+const PORT = process.env.PORT || 4000;
+const wss = new WebSocketServer({ port: PORT });
+// console.log(`WebSocket server listening on ws://localhost:${PORT}`);
+console.log(
+  `In production, connect via wss://shushh-ws.onrender.com with the assigned port`
+);
 
 // Maps now keyed by permanent userId
 const clients = new Map(); // userId → WebSocket
@@ -206,4 +211,7 @@ wss.on("connection", async (ws, req) => {
   });
 });
 
-console.log("WebSocket server listening on ws://localhost:4000");
+console.log(`WebSocket server listening on ws://localhost:${PORT}`);
+console.log(
+  `In production, connect via wss://shushh-ws.onrender.com with the assigned port`
+);

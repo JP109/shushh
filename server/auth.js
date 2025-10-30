@@ -111,7 +111,10 @@ app.get("/users", async (req, res) => {
 });
 
 // Start the server
-const PORT = process.env.AUTH_PORT || 3004;
+const PORT = process.env.PORT || 3004;
 app.listen(PORT, () => {
-  console.log(`🔑 Auth server listening on http://localhost:${PORT}`);
+  // console.log(`🔑 Auth server listening on http://localhost:${PORT}`);
+  console.log(
+    `🔑 Auth server listening on https://shushh-auth.onrender.com:${PORT}`
+  );
 });

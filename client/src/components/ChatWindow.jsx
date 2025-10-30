@@ -35,9 +35,21 @@ export default function ChatWindow({ user, onLogout }) {
     setLog((l) => [...l, entry]);
   };
 
+  // // Uncomment for local testing
+  // Fetch all other users when component mounts
+  // useEffect(() => {
+  //   fetch("http://localhost:3004/users")
+  //     .then((res) => res.json())
+  //     .then((data) => {
+  //       const others = data.filter((u) => u.id !== user.id);
+  //       setUsersList(others);
+  //     })
+  //     .catch((err) => addLog(`[USERS] fetch error: ${err.message}`));
+  // }, [user.id]);
+
   // Fetch all other users when component mounts
   useEffect(() => {
-    fetch("http://localhost:3004/users")
+    fetch("https://shushh-auth.onrender.com/users")
       .then((res) => res.json())
       .then((data) => {
         const others = data.filter((u) => u.id !== user.id);
@@ -48,8 +60,12 @@ export default function ChatWindow({ user, onLogout }) {
 
   useEffect(() => {
     // on mount, inject Authorization header or token param if needed
+    // // Uncomment for local testing
+    // const ws = new WebSocket(
+    //   `ws://localhost:4000?token=${localStorage.getItem("token")}`
+    // );
     const ws = new WebSocket(
-      `ws://localhost:4000?token=${localStorage.getItem("token")}`
+      `wss://shushh-ws.onrender.com?token=${localStorage.getItem("token")}`
     );
     wsRef.current = ws;
 
@@ -428,7 +444,10 @@ export default function ChatWindow({ user, onLogout }) {
                     `#${m.from}`;
 
                 return (
-                  <div key={i}>
+                  <div
+                    key={i}
+                    className={isMe ? "message me" : "message other"}
+                  >
                     <b>{senderName}:</b> {m.text} {/*!!!! */}
                   </div>
                 );
