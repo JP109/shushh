@@ -6,11 +6,22 @@ import jwt from "jsonwebtoken";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 dotenv.config();
 
 const app = express();
-app.use(cors({ origin: "*" }));
+
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://shushh.onrender.com";
+app.use(cors({ origin: FRONTEND_URL }));
 app.use(express.json());
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later." },
+});
 
 // — Load these from .env
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -25,10 +36,13 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !JWT_SECRET) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 // POST /auth/signup
-app.post("/auth/signup", async (req, res) => {
+app.post("/auth/signup", authLimiter, async (req, res) => {
   const { name, email, password } = req.body;
   if (!email || !password || !name) {
     return res.status(400).json({ error: "Need email + password + name" });
+  }
+  if (password.length < 8) {
+    return res.status(400).json({ error: "Password must be at least 8 characters" });
   }
 
   // check for existing
@@ -64,7 +78,7 @@ app.post("/auth/signup", async (req, res) => {
   });
 });
 
-app.post("/auth/login", async (req, res) => {
+app.post("/auth/login", authLimiter, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: "Need email + password" });
@@ -95,8 +109,17 @@ app.post("/auth/login", async (req, res) => {
   });
 });
 
-// GET /users  → returns [{ id, email }, …]
+// GET /users  → returns [{ id, email, name }, …]
 app.get("/users", async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+  try {
+    jwt.verify(authHeader.slice(7), JWT_SECRET);
+  } catch {
+    return res.status(401).json({ error: "Invalid or expired token" });
+  }
   try {
     const { data, error } = await supabase
       .from("users")

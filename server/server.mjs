@@ -102,8 +102,11 @@ wss.on("connection", async (ws, req) => {
       return;
     }
 
+    if (!m || typeof m !== "object" || typeof m.type !== "string") return;
+
     //!!!! Relay peer-logout to the other side
     if (m.type === "peer-logout") {
+      if (typeof m.to !== "number") return;
       const targetWs = clients.get(m.to);
       if (targetWs) {
         targetWs.send(
@@ -119,6 +122,7 @@ wss.on("connection", async (ws, req) => {
 
     // ─── Handle client–server DH ──────────────────────
     if (m.type === "auth-dh-request") {
+      if (typeof m.public !== "string" || !/^[0-9a-f]+$/i.test(m.public)) return;
       console.log(`[AUTH] ← DH request from user ${userId}`);
       const A = BigInt(`0x${m.public}`);
       const b = randomBigInt();
@@ -147,6 +151,7 @@ wss.on("connection", async (ws, req) => {
     }
 
     if (m.type === "message") {
+      if (typeof m.to !== "number" || !Array.isArray(m.data)) return;
       const targetWs = clients.get(m.to);
 
       // 1) Strip outer layer (client→server auth key)
@@ -199,6 +204,10 @@ wss.on("connection", async (ws, req) => {
     }
 
     // ─── Relay DH negotiation ◆ client–client ───────
+    const allowed = ["dh-request", "dh-response", "dh-declined"];
+    if (!allowed.includes(m.type)) return;
+    if (typeof m.to !== "number") return;
+    if (m.type !== "dh-declined" && (typeof m.public !== "string" || !/^[0-9a-f]+$/i.test(m.public))) return;
     const peerWs = clients.get(m.to);
     if (peerWs) {
       peerWs.send(JSON.stringify({ ...m, from: userId }));

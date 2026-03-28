@@ -49,7 +49,9 @@ export default function ChatWindow({ user, onLogout }) {
 
   // Fetch all other users when component mounts
   useEffect(() => {
-    fetch("https://shushh-auth.onrender.com/users")
+    fetch("https://shushh-auth.onrender.com/users", {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+    })
       .then((res) => res.json())
       .then((data) => {
         const others = data.filter((u) => u.id !== user.id);
@@ -257,7 +259,7 @@ export default function ChatWindow({ user, onLogout }) {
       Array.from(b)
         .map((x) => x.toString(16).padStart(2, "0"))
         .join("");
-    const storageKey = SHARED_STORAGE_KEY(from, user.id);
+    const storageKey = SHARED_STORAGE_KEY(from);
     localStorage.setItem(
       storageKey,
       JSON.stringify({ key: toHex(sharedKey), iv: toHex(sharedIv) })
