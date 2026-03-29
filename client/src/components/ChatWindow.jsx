@@ -22,6 +22,14 @@ export default function ChatWindow({ user, onLogout }) {
   const [log, setLog] = useState([]);
   const msgIn = useRef();
   const [chat, setChat] = useState([]);
+  const logRef = useRef(null);
+
+  // Auto-scroll log to bottom whenever it updates
+  useEffect(() => {
+    if (logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
+    }
+  }, [log]);
 
   // Incoming DH request state
   const [incomingRequest, setIncomingRequest] = useState(null);
@@ -371,7 +379,7 @@ export default function ChatWindow({ user, onLogout }) {
   return (
     <>
       <div className="user-bar">
-        <div className="logo">TeleChat</div>
+        <div className="logo">TeleChat <span className="e2ee-badge">E2EE</span></div>
         <div>
           <span className="login-details">
             Logged in as:{" "}
@@ -388,8 +396,11 @@ export default function ChatWindow({ user, onLogout }) {
           <ul>
             {usersList.map((u) => (
               <li key={u.id}>
-                <button onClick={() => initiatePeerDH(u.id)}>
-                  {u.name} (User #{u.id})
+                <button
+                  onClick={() => initiatePeerDH(u.id)}
+                  data-initial={u.name ? u.name[0].toUpperCase() : "?"}
+                >
+                  {u.name}
                 </button>
               </li>
             ))}
@@ -459,7 +470,8 @@ export default function ChatWindow({ user, onLogout }) {
               <input
                 className="message-input"
                 ref={msgIn}
-                placeholder="Type message…"
+                placeholder="Type a message…"
+                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
               />
               <button className="send-button" onClick={sendMessage}>
                 Send
@@ -469,8 +481,8 @@ export default function ChatWindow({ user, onLogout }) {
         )}
 
         <div className="log-container">
-          <strong>Log:</strong>
-          <pre className="log-output">{log.join("\n")}</pre>
+          <strong>Encryption Log</strong>
+          <pre className="log-output" ref={logRef}>{log.join("\n")}</pre>
         </div>
       </div>
     </>
